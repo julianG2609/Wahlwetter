@@ -121,6 +121,17 @@ Ingestion is idempotent: running it twice leaves the Parquet files
 byte-identical, which is asserted both in the test suite and in
 `ingest.yml`.
 
+## Baselines
+
+```bash
+uv run wahlwetter backtest
+```
+
+Scores three simple estimators against the 2017, 2021 and 2025 results. These
+are the benchmarks the Bayesian model has to beat — currently about **1.0
+percentage point** mean absolute error one day out, and **2.5** at three months.
+See [`docs/baselines.md`](docs/baselines.md).
+
 ## Data model
 
 `data/tables/` holds tidy Parquet, queryable directly with DuckDB:
@@ -160,7 +171,7 @@ be stated in the Datenschutzerklärung.
 | --- | --- |
 | 0 | Scaffolding, tooling, CI (done) |
 | 1 | Ingestion from the dawum API into tidy Parquet tables (done) |
-| 2 | Official election results as ground truth (done); simple baselines |
+| 2 | Official election results as ground truth; simple baselines (done) |
 | 3 | Bayesian state-space model (Bundestag), backtested against the baselines |
 | 4 | Seat allocation (Sainte-Laguë/Schepers) and coalition probabilities |
 | 5 | Quarto website |

@@ -45,12 +45,30 @@ def build_parser() -> argparse.ArgumentParser:
         help="output CSV (default: data/reference/bundestag_election_results.csv)",
     )
 
+    back = sub.add_parser("backtest", help="score the baselines against past elections")
+    back.add_argument(
+        "--out",
+        type=Path,
+        default=None,
+        help="write full results as JSON (default: data/backtest/baselines.json)",
+    )
+    back.add_argument(
+        "--horizons",
+        type=int,
+        nargs="+",
+        default=None,
+        help="days before each election to evaluate at",
+    )
+
     return parser
 
 
 def main(argv: list[str] | None = None) -> int:
     args = build_parser().parse_args(argv)
     logging.basicConfig(level=logging.INFO, format="%(levelname)s %(message)s")
+
+    if args.command == "backtest":
+        return _backtest(args)
 
     if args.command == "fetch-elections":
         return _fetch_elections(args)
@@ -105,4 +123,42 @@ def _fetch_elections(args: argparse.Namespace) -> int:
     rows_to_csv(rows, out)
     years = sorted({r.election_year for r in rows})
     print(json.dumps({"rows": len(rows), "elections": years, "out": str(out)}, indent=2))
+    return 0
+
+
+def _backtest(args: argparse.Namespace) -> int:
+    from wahlwetter.backtest import (
+        DEFAULT_HORIZONS,
+        format_table,
+        rows_to_dicts,
+        run_backtest,
+        summarize,
+    )
+    from wahlwetter.config import DATA_DIR
+    from wahlwetter.polls import load_election_results, load_polls
+    from wahlwetter.storage import write_json
+
+    horizons = tuple(args.horizons) if args.horizons else DEFAULT_HORIZONS
+    polls = load_polls()
+    elections = load_election_results()
+    rows = run_backtest(polls, elections, horizons=horizons)
+
+    print(format_table(rows, horizons))
+    print()
+    print(
+        "mean absolute error in percentage points, averaged over "
+        f"{len({r.election_year for r in rows})} elections"
+    )
+
+    out = args.out or DATA_DIR / "backtest" / "baselines.json"
+    write_json(
+        {
+            "horizons": list(horizons),
+            "elections": sorted({r.election_year for r in rows}),
+            "summary": summarize(rows),
+            "rows": rows_to_dicts(rows),
+        },
+        out,
+    )
+    print(f"\nwrote {out}")
     return 0
