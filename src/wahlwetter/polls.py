@@ -29,6 +29,9 @@ class PollObservation:
     fieldwork_midpoint: date
     sample_size: int | None
     shares: dict[str, float]
+    # Defaulted so the estimators, which never look at it, can build a poll
+    # without one. The model does use it.
+    method_id: str = "0"
 
     def is_available_on(self, as_of: date) -> bool:
         """Availability is publication, not fieldwork.
@@ -65,6 +68,7 @@ def load_polls(
             fieldwork_midpoint=row.fieldwork_midpoint,
             sample_size=None if row.sample_size is None else int(row.sample_size),
             shares=shares.get(row.survey_id, {}),
+            method_id=row.method_id,
         )
         for row in surveys.itertuples(index=False)
     ]

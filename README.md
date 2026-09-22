@@ -132,6 +132,25 @@ are the benchmarks the Bayesian model has to beat — currently about **1.0
 percentage point** mean absolute error one day out, and **2.5** at three months.
 See [`docs/baselines.md`](docs/baselines.md).
 
+## The model
+
+```bash
+uv sync --extra model
+uv run python -m cmdstanpy.install_cmdstan   # once
+uv run wahlwetter model
+```
+
+Fits a Bayesian state-space model for the Bundestag: latent daily vote shares as
+a random walk on a log-ratio scale, pushed through a softmax so shares sum to
+one by construction, with institute house effects and an estimated effective
+sample size. Writes `data/model/bundestag_trend.json`.
+
+Convergence is **gated, not reported** — the command refuses to write output
+from a fit that fails its R-hat, ESS, divergence or treedepth checks. See
+[`docs/model.md`](docs/model.md), which also documents why survey-method effects
+are disabled by default and why the estimated design effect needs careful
+reading.
+
 ## Data model
 
 `data/tables/` holds tidy Parquet, queryable directly with DuckDB:
@@ -172,6 +191,6 @@ be stated in the Datenschutzerklärung.
 | 0 | Scaffolding, tooling, CI (done) |
 | 1 | Ingestion from the dawum API into tidy Parquet tables (done) |
 | 2 | Official election results as ground truth; simple baselines (done) |
-| 3 | Bayesian state-space model (Bundestag), backtested against the baselines |
+| 3 | Bayesian state-space model (Bundestag), backtested against the baselines (model built; backtest pending) |
 | 4 | Seat allocation (Sainte-Laguë/Schepers) and coalition probabilities |
 | 5 | Quarto website |

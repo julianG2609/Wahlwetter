@@ -29,3 +29,7 @@ data/raw/*
 # Local scratch
 .DS_Store
 scratch/
+
+# Compiled Stan executables (built locally / in CI, never committed)
+src/wahlwetter/model/stan/*
+!src/wahlwetter/model/stan/*.stan

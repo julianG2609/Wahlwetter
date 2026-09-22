@@ -6,6 +6,7 @@ import argparse
 import json
 import logging
 import sys
+from datetime import date
 from pathlib import Path
 
 from wahlwetter.findings import Severity
@@ -60,12 +61,49 @@ def build_parser() -> argparse.ArgumentParser:
         help="days before each election to evaluate at",
     )
 
+    model = sub.add_parser("model", help="fit the Bayesian trend model")
+    model.add_argument(
+        "--start",
+        type=date.fromisoformat,
+        default=None,
+        help="window start (default: the most recent election)",
+    )
+    model.add_argument(
+        "--end",
+        type=date.fromisoformat,
+        default=None,
+        help="window end (default: the latest fieldwork date)",
+    )
+    model.add_argument("--warmup", type=int, default=1000)
+    model.add_argument("--sampling", type=int, default=1000)
+    model.add_argument("--chains", type=int, default=4)
+    model.add_argument("--adapt-delta", type=float, default=0.95)
+    model.add_argument(
+        "--include-method-effects",
+        action="store_true",
+        help="estimate survey-method effects (see docs/model.md on identifiability)",
+    )
+    model.add_argument(
+        "--out",
+        type=Path,
+        default=None,
+        help="output JSON (default: data/model/bundestag_trend.json)",
+    )
+    model.add_argument(
+        "--allow-bad-diagnostics",
+        action="store_true",
+        help="write the output even if convergence checks fail (never use in CI)",
+    )
+
     return parser
 
 
 def main(argv: list[str] | None = None) -> int:
     args = build_parser().parse_args(argv)
     logging.basicConfig(level=logging.INFO, format="%(levelname)s %(message)s")
+
+    if args.command == "model":
+        return _model(args)
 
     if args.command == "backtest":
         return _backtest(args)
@@ -160,5 +198,85 @@ def _backtest(args: argparse.Namespace) -> int:
         },
         out,
     )
+    print(f"\nwrote {out}")
+    return 0
+
+
+def _model(args: argparse.Namespace) -> int:
+    from wahlwetter.config import DATA_DIR, TABLES_DIR
+    from wahlwetter.model import fit as fitting
+    from wahlwetter.model.data import build_model_data
+    from wahlwetter.model.output import build_output, latest_estimates
+    from wahlwetter.polls import load_election_results, load_polls
+    from wahlwetter.storage import read_parquet, write_json
+
+    if not fitting.cmdstan_available():
+        print(
+            "error: CmdStan is not available. Install it with\n"
+            "  uv sync --extra model && uv run python -m cmdstanpy.install_cmdstan",
+            file=sys.stderr,
+        )
+        return 2
+
+    polls = load_polls()
+    # Default window starts at the most recent election: before it, the latent
+    # series describes a different parliament and a different party landscape.
+    start = args.start or max(e.election_date for e in load_election_results())
+    end = args.end or max(p.fieldwork_midpoint for p in polls)
+
+    model_data = build_model_data(
+        polls, start, end, include_method_effects=args.include_method_effects
+    )
+    config = fitting.SamplingConfig(
+        chains=args.chains,
+        parallel_chains=args.chains,
+        iter_warmup=args.warmup,
+        iter_sampling=args.sampling,
+        adapt_delta=args.adapt_delta,
+    )
+
+    print(
+        f"fitting {model_data.stan_data['n_polls']} polls, "
+        f"{model_data.n_parties} parties, {model_data.n_days} days "
+        f"({start} to {end})",
+        file=sys.stderr,
+    )
+    fit = fitting.sample(model_data, config)
+
+    diagnostics = fitting.collect_diagnostics(fit, config)
+    ppc = fitting.posterior_predictive_check(fit, model_data)
+
+    for problem in diagnostics.problems:
+        print(f"error: convergence: {problem}", file=sys.stderr)
+
+    if not diagnostics.ok and not args.allow_bad_diagnostics:
+        print(
+            "error: refusing to write output from a fit that failed its convergence checks",
+            file=sys.stderr,
+        )
+        return 1
+
+    parties = read_parquet(TABLES_DIR / "parties.parquet")
+    institutes = read_parquet(TABLES_DIR / "institutes.parquet")
+    output = build_output(
+        fit,
+        model_data,
+        diagnostics=diagnostics.to_dict(),
+        ppc=ppc,
+        party_names=parties.set_index("party_id")["shortcut"].to_dict(),
+        institute_names=institutes.set_index("institute_id")["name"].to_dict(),
+    )
+
+    out = args.out or DATA_DIR / "model" / "bundestag_trend.json"
+    write_json(output, out)
+
+    names = parties.set_index("party_id")["shortcut"].to_dict()
+    print(json.dumps({"diagnostics": diagnostics.to_dict(), "ppc": ppc}, indent=2))
+    print()
+    for party, values in sorted(latest_estimates(output).items(), key=lambda kv: -kv[1]["median"]):
+        print(
+            f"  {names.get(party, party):14s} {values['median']:5.1f}  "
+            f"80%: [{values['q10']:4.1f}, {values['q90']:4.1f}]"
+        )
     print(f"\nwrote {out}")
     return 0
