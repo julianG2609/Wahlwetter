@@ -1,0 +1,4 @@
+# Test fixtures mirror the exact byte format of the upstream files they stand
+# in for -- including CRLF line endings and a UTF-8 BOM. Normalising them would
+# silently remove the very thing they exist to test.
+tests/fixtures/** -text

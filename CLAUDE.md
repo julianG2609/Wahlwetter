@@ -50,8 +50,20 @@ Working agreements for AI sessions on this repository. Derived from
 
 ## Licensing
 
-Code is MIT. Data is ODbL v1.0, inherited from dawum.de, so the derived database
-is share-alike and must carry attribution on the site.
+Code is MIT. Poll data is ODbL v1.0, inherited from dawum.de, so the derived
+database is share-alike and must carry attribution on the site.
+
+Official election results are Datenlizenz Deutschland - Namensnennung 2.0
+(Die Bundeswahlleiterin / Destatis) and require their own attribution. Both
+notices must appear on the site.
+
+## Reference data
+
+Values the poll API does not provide are scraped from the responsible official
+body, never written from memory. Every row carries a `source_url`, and a date
+that is not in a data file is stored together with the page and sentence it was
+read from. Derived tables must reconcile with the published figures before they
+are written; see docs/election_results.md.
 
 ## Working style
 

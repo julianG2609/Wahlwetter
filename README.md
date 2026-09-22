@@ -30,10 +30,18 @@ Think of dawum.de as the data layer and this project as the analysis layer.
   treat direct mandates as explicit, configurable assumptions, stated on the
   site — they are not inferred from polls.
 
-## Data source and attribution
+## Data sources and attribution
 
-Poll data comes from the **[dawum.de](https://dawum.de) API**, which is
+**Polls** come from the **[dawum.de](https://dawum.de) API**, which is
 published under the Open Data Commons Open Database License (ODbL) v1.0.
+
+**Official election results** come from
+**[Die Bundeswahlleiterin](https://www.bundeswahlleiterin.de)** /
+Statistisches Bundesamt (Destatis), published under
+[Datenlizenz Deutschland – Namensnennung – Version 2.0](https://www.govdata.de/dl-de/by-2-0),
+which also requires attribution. See
+[`docs/election_results.md`](docs/election_results.md) for what was retrieved
+and how it was verified.
 
 Because the tables and model outputs here are a derived database, they are
 published under ODbL v1.0 as well, with attribution to dawum.de. See
@@ -97,6 +105,18 @@ polite. Useful flags:
 | `--from-snapshot PATH` | replay an archived `.json.gz`, making no request at all |
 | `--fail-on-error-findings` | exit non-zero if any survey was quarantined |
 
+Official election results, used as ground truth for validating the model:
+
+```bash
+uv run wahlwetter fetch-elections
+```
+
+This writes `data/reference/bundestag_election_results.csv`, with a
+`source_url` on every row. It refuses to write the file unless the numbers
+reconcile with the official published figures: shares summing to 100, vote and
+seat counts matching the official totals exactly, and each recomputed share
+within half a rounding step of the published percentage.
+
 Ingestion is idempotent: running it twice leaves the Parquet files
 byte-identical, which is asserted both in the test suite and in
 `ingest.yml`.
@@ -140,7 +160,7 @@ be stated in the Datenschutzerklärung.
 | --- | --- |
 | 0 | Scaffolding, tooling, CI (done) |
 | 1 | Ingestion from the dawum API into tidy Parquet tables (done) |
-| 2 | Official election results as ground truth; simple baselines |
+| 2 | Official election results as ground truth (done); simple baselines |
 | 3 | Bayesian state-space model (Bundestag), backtested against the baselines |
 | 4 | Seat allocation (Sainte-Laguë/Schepers) and coalition probabilities |
 | 5 | Quarto website |

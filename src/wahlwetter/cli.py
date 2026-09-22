@@ -34,12 +34,26 @@ def build_parser() -> argparse.ArgumentParser:
         action="store_true",
         help="exit non-zero if any survey was quarantined (used in CI)",
     )
+    elections = sub.add_parser(
+        "fetch-elections",
+        help="fetch official Bundestag election results from Die Bundeswahlleiterin",
+    )
+    elections.add_argument(
+        "--out",
+        type=Path,
+        default=None,
+        help="output CSV (default: data/reference/bundestag_election_results.csv)",
+    )
+
     return parser
 
 
 def main(argv: list[str] | None = None) -> int:
     args = build_parser().parse_args(argv)
     logging.basicConfig(level=logging.INFO, format="%(levelname)s %(message)s")
+
+    if args.command == "fetch-elections":
+        return _fetch_elections(args)
 
     if args.command != "ingest":  # pragma: no cover - argparse enforces this
         return 2
@@ -66,3 +80,29 @@ def main(argv: list[str] | None = None) -> int:
 
 if __name__ == "__main__":  # pragma: no cover
     raise SystemExit(main())
+
+
+def _fetch_elections(args: argparse.Namespace) -> int:
+    from wahlwetter.config import DATA_DIR
+    from wahlwetter.reference.bundeswahlleiterin import (
+        fetch_results_csv,
+        parse_results_csv,
+        rows_to_csv,
+        to_rows,
+        validate_rows,
+    )
+
+    out = args.out or DATA_DIR / "reference" / "bundestag_election_results.csv"
+    rows = to_rows(parse_results_csv(fetch_results_csv()))
+
+    problems = validate_rows(rows)
+    if problems:
+        # Never write a table that does not reconcile with the official figures.
+        for problem in problems:
+            print(f"error: {problem}", file=sys.stderr)
+        return 1
+
+    rows_to_csv(rows, out)
+    years = sorted({r.election_year for r in rows})
+    print(json.dumps({"rows": len(rows), "elections": years, "out": str(out)}, indent=2))
+    return 0

@@ -1,0 +1,16 @@
+{
+  "_comment": "Maps official Bundeswahlleiterin party labels to dawum party IDs for the Bundestag (dawum parliament 0). Reviewed by hand. CDU and CSU are separate in the official data but a single party in dawum's Bundestag polls, so they are summed. A label that appears in the official data but is not listed here falls into the computed 'Sonstige' residual, which is how dawum's institutes report it too.",
+  "_source": "docs/election_results.md",
+  "parliament_id": "0",
+  "residual_party_id": "0",
+  "mapping": {
+    "1": { "shortcut": "CDU/CSU", "official_labels": ["CDU", "CSU"] },
+    "2": { "shortcut": "SPD", "official_labels": ["SPD"] },
+    "3": { "shortcut": "FDP", "official_labels": ["FDP"] },
+    "4": { "shortcut": "Grüne", "official_labels": ["GRÜNE"] },
+    "5": { "shortcut": "Linke", "official_labels": ["Die Linke"] },
+    "7": { "shortcut": "AfD", "official_labels": ["AfD"] },
+    "8": { "shortcut": "Freie Wähler", "official_labels": ["FREIE WÄHLER"] },
+    "23": { "shortcut": "BSW", "official_labels": ["BSW"] }
+  }
+}
