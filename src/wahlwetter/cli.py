@@ -95,12 +95,33 @@ def build_parser() -> argparse.ArgumentParser:
         help="write the output even if convergence checks fail (never use in CI)",
     )
 
+    mbt = sub.add_parser(
+        "backtest-model",
+        help="score the Bayesian model against the baselines on past elections",
+    )
+    mbt.add_argument("--horizons", type=int, nargs="+", default=None)
+    mbt.add_argument("--window-days", type=int, default=365)
+    mbt.add_argument("--warmup", type=int, default=1000)
+    mbt.add_argument("--sampling", type=int, default=1000)
+    mbt.add_argument("--chains", type=int, default=4)
+    mbt.add_argument("--adapt-delta", type=float, default=0.95)
+    mbt.add_argument("--max-treedepth", type=int, default=12)
+    mbt.add_argument(
+        "--out",
+        type=Path,
+        default=None,
+        help="output JSON (default: data/backtest/model_vs_baselines.json)",
+    )
+
     return parser
 
 
 def main(argv: list[str] | None = None) -> int:
     args = build_parser().parse_args(argv)
     logging.basicConfig(level=logging.INFO, format="%(levelname)s %(message)s")
+
+    if args.command == "backtest-model":
+        return _backtest_model(args)
 
     if args.command == "model":
         return _model(args)
@@ -278,5 +299,87 @@ def _model(args: argparse.Namespace) -> int:
             f"  {names.get(party, party):14s} {values['median']:5.1f}  "
             f"80%: [{values['q10']:4.1f}, {values['q90']:4.1f}]"
         )
+    print(f"\nwrote {out}")
+    return 0
+
+
+def _backtest_model(args: argparse.Namespace) -> int:
+    from wahlwetter.config import DATA_DIR
+    from wahlwetter.model import fit as fitting
+    from wahlwetter.model.backtest import (
+        DEFAULT_BACKTEST_HORIZONS,
+        format_comparison,
+        rows_to_dicts,
+        run_model_backtest,
+        summarize_model_backtest,
+    )
+    from wahlwetter.polls import load_election_results, load_polls
+    from wahlwetter.storage import write_json
+
+    if not fitting.cmdstan_available():
+        print("error: CmdStan is not available", file=sys.stderr)
+        return 2
+
+    horizons = tuple(args.horizons) if args.horizons else DEFAULT_BACKTEST_HORIZONS
+    config = fitting.SamplingConfig(
+        chains=args.chains,
+        parallel_chains=args.chains,
+        iter_warmup=args.warmup,
+        iter_sampling=args.sampling,
+        adapt_delta=args.adapt_delta,
+        max_treedepth=args.max_treedepth,
+    )
+
+    rows = run_model_backtest(
+        load_polls(),
+        load_election_results(),
+        horizons=horizons,
+        window_days=args.window_days,
+        config=config,
+        progress=lambda message: print(message, file=sys.stderr, flush=True),
+    )
+
+    print(format_comparison(rows, horizons))
+    print()
+    print("mean absolute error in percentage points, averaged over elections")
+
+    model_rows = [r for r in rows if r.method == "bayesian_trend"]
+    failed = [r for r in model_rows if r.diagnostics_ok is False]
+    print(f"\nfits passing diagnostics: {len(model_rows) - len(failed)}/{len(model_rows)}")
+    for row in failed:
+        print(
+            f"  FAILED {row.election_year} h={row.horizon_days}d: "
+            f"{'; '.join(row.diagnostic_problems)}",
+            file=sys.stderr,
+        )
+
+    wins = 0
+    for row in model_rows:
+        others = [
+            r.mae
+            for r in rows
+            if r.method != "bayesian_trend"
+            and r.election_year == row.election_year
+            and r.horizon_days == row.horizon_days
+        ]
+        if others and row.mae < min(others):
+            wins += 1
+    print(f"model beats the best baseline in {wins} of {len(model_rows)} cells")
+    if wins <= len(model_rows) / 2:
+        print(
+            "note: the model does not beat the baselines; it must not be presented as better",
+            file=sys.stderr,
+        )
+
+    out = args.out or DATA_DIR / "backtest" / "model_vs_baselines.json"
+    write_json(
+        {
+            "horizons": list(horizons),
+            "window_days": args.window_days,
+            "summary": summarize_model_backtest(rows),
+            "rows": rows_to_dicts(rows),
+        },
+        out,
+    )
     print(f"\nwrote {out}")
     return 0

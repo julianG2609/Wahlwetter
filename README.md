@@ -156,6 +156,17 @@ from a fit that fails its R-hat, ESS, divergence or treedepth checks. See
 are disabled by default and why the estimated design effect needs careful
 reading.
 
+Score the model against the baselines on past elections:
+
+```bash
+uv run wahlwetter backtest-model
+```
+
+Both sides see only polls published by the cutoff and are scored on the same
+party set. The command reports how many fits passed their convergence checks
+and how many cells the model actually wins, and says so explicitly when it does
+not beat the baselines.
+
 ## Data model
 
 `data/tables/` holds tidy Parquet, queryable directly with DuckDB:
