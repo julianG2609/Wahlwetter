@@ -169,6 +169,36 @@ confounded, as in any state-space model. A random walk free to move can absorb
 scatter that is really observation noise, pushing the estimated design effect
 down. The two should be varied together in a sensitivity check.
 
+## House effects from thin data
+
+Institutes differ enormously in how often they poll. In the current window:
+
+| Institute | Polls |
+| --- | --- |
+| INSA | 161 |
+| Forsa | 79 |
+| Forschungsgruppe Wahlen | 28 |
+| Allensbach, Infratest dimap, Ipsos, Verian, YouGov | 18–19 each |
+| GMS | 10 |
+| pollytix | 9 |
+| Institut Wahlkreisprognose | **1** |
+
+The first run produced a **+5.65 point** house effect on AfD for Institut
+Wahlkreisprognose, with an 80% interval excluding zero — fitted to a single
+poll. It reads as a confident finding and is nothing of the sort. The low
+estimated design effect makes this worse, because the model treats that one
+poll as highly informative.
+
+Output therefore carries `n_polls` and a `reportable` flag per institute, false
+below five polls in the window, and `excludes_zero_80` is forced false for
+those. **The site must not display non-reportable house effects as findings.**
+The institute's poll still informs the trend; only the house-effect estimate is
+withheld.
+
+This is a mitigation, not a fix. The proper treatment is stronger hierarchical
+shrinkage so thin institutes are pulled towards zero rather than filtered after
+the fact.
+
 ## Known limitations
 
 - **Not a forecast.** This estimates current opinion. Turning it into an
@@ -182,6 +212,10 @@ down. The two should be varied together in a sensitivity check.
   method and weighting; a slowly varying house effect would be more realistic.
 - **No correlation between parties** beyond the softmax constraint. In reality
   movements between neighbouring parties are correlated.
+- **Model output is not committed.** `data/model/bundestag_trend.json` is
+  680 KB and would be regenerated daily; versioning it would add hundreds of
+  megabytes a year. It is fully reproducible from the committed snapshot and a
+  fixed seed, so the deploy workflow generates it instead.
 - The window starts at the most recent election, so the latent series carries
   no information from before it. That is deliberate — the party landscape and
   parliament differ — but it means early-window estimates lean on the prior.

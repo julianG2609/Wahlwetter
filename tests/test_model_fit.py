@@ -170,3 +170,100 @@ def test_ppc_reports_every_observation():
     ppc = F.posterior_predictive_check(fit, md)
     assert ppc["n_observations"] == md.stan_data["n_obs"]
     assert 0.0 <= ppc["outside_95_fraction"] <= 1.0
+
+
+# --- output layer ----------------------------------------------------------
+
+
+class FakeStanFit:
+    """Supplies the arrays the output layer reads, with no sampler involved."""
+
+    def __init__(self, n_draws=50, n_days=12, n_parties=3, n_institutes=2):
+        import numpy as np
+
+        rng = np.random.default_rng(0)
+        raw = rng.random((n_draws, n_days, n_parties)) * 0.1 + 0.3
+        self._share = raw / raw.sum(axis=2, keepdims=True)
+        self._house = rng.normal(0, 0.1, (n_draws, n_institutes, n_parties - 1))
+
+    def stan_variable(self, name):
+        return {"share": self._share, "house": self._house}[name]
+
+
+def _model_data(n_institutes=2):
+    polls = []
+    for i in range(12):
+        day = date(2025, 6, 1 + i)
+        # Institute "2" gets a single poll; everything else gets many.
+        institute = "2" if i == 0 else "1"
+        if n_institutes == 1:
+            institute = "1"
+        polls.append(
+            PollObservation(
+                survey_id=f"s{i}",
+                institute_id=institute,
+                published_at=day,
+                fieldwork_start=day,
+                fieldwork_end=day,
+                fieldwork_midpoint=day,
+                sample_size=1000,
+                shares={"1": 30.0, "2": 25.0, "0": 45.0},
+                method_id="3",
+            )
+        )
+    return build_model_data(polls, date(2025, 6, 1), date(2025, 6, 12), min_party_coverage=0.0)
+
+
+def test_house_effect_of_a_one_poll_institute_is_not_reportable():
+    """A house effect fitted to one poll must not read as a finding."""
+    from wahlwetter.model.output import house_effects
+
+    md = _model_data()
+    rows = house_effects(FakeStanFit(), md)
+    thin = [r for r in rows if r["institute_id"] == "2"]
+    assert thin
+    assert all(r["n_polls"] == 1 for r in thin)
+    assert all(r["reportable"] is False for r in thin)
+    assert all(r["excludes_zero_80"] is False for r in thin)
+
+
+def test_house_effect_of_a_well_covered_institute_is_reportable():
+    from wahlwetter.model.output import house_effects
+
+    md = _model_data()
+    rows = house_effects(FakeStanFit(), md)
+    thick = [r for r in rows if r["institute_id"] == "1"]
+    assert all(r["reportable"] is True for r in thick)
+    assert all(r["n_polls"] >= 5 for r in thick)
+
+
+def test_trend_series_carries_every_published_quantile():
+    from wahlwetter.model.output import QUANTILES, daily_trend
+
+    md = _model_data()
+    trend = daily_trend(FakeStanFit(), md)
+    for series in trend["series"]:
+        for label in QUANTILES:
+            assert len(series[label]) == md.n_days
+        assert len(series["dates"]) == md.n_days
+
+
+def test_trend_quantiles_are_ordered():
+    from wahlwetter.model.output import daily_trend
+
+    md = _model_data()
+    trend = daily_trend(FakeStanFit(), md)
+    for series in trend["series"]:
+        for t in range(md.n_days):
+            assert series["q2_5"][t] <= series["q25"][t] <= series["median"][t]
+            assert series["median"][t] <= series["q75"][t] <= series["q97_5"][t]
+
+
+def test_trend_shares_sum_to_one_hundred_each_day():
+    from wahlwetter.model.output import daily_trend
+
+    md = _model_data()
+    trend = daily_trend(FakeStanFit(), md)
+    for t in range(md.n_days):
+        total = sum(s["median"][t] for s in trend["series"])
+        assert total == pytest.approx(100.0, abs=1.5)

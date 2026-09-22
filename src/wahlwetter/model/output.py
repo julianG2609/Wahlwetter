@@ -17,6 +17,12 @@ if TYPE_CHECKING:  # pragma: no cover
 
 #: Published quantiles. 50% and 80% are the honest working intervals; 95% is
 #: included because readers expect it, not because it is more informative.
+#: An institute needs at least this many polls in the window before its house
+#: effect is worth showing. Below it the estimate is fitted to almost no data
+#: and can still come out with an interval excluding zero, which reads as a
+#: confident finding on a pollster page when it is nothing of the sort.
+MIN_POLLS_FOR_HOUSE_EFFECT = 5
+
 QUANTILES = {
     "q2_5": 2.5,
     "q10": 10.0,
@@ -84,9 +90,14 @@ def house_effects(
 
     inames = institute_names or {}
     pnames = party_names or {}
+    poll_counts: dict[str, int] = {}
+    for poll in model_data.polls:
+        poll_counts[poll.institute_id] = poll_counts.get(poll.institute_id, 0) + 1
     out: list[dict[str, Any]] = []
 
     for j, institute in enumerate(model_data.institutes):
+        n_polls = poll_counts.get(institute, 0)
+        reportable = n_polls >= MIN_POLLS_FOR_HOUSE_EFFECT
         for k, party in enumerate(model_data.parties[1:]):  # reference excluded
             values = house[:, j, k]
             level = float(latest[k + 1])
@@ -96,6 +107,11 @@ def house_effects(
                 {
                     "institute_id": institute,
                     "institute_name": inames.get(institute, institute),
+                    "n_polls": n_polls,
+                    # False when the institute has too few polls for the
+                    # estimate to mean anything. The site must not display
+                    # these as findings.
+                    "reportable": reportable,
                     "party_id": party,
                     "party_shortcut": pnames.get(party, party),
                     "median_log_ratio": round(float(np.median(values)), 4),
@@ -105,7 +121,8 @@ def house_effects(
                     # Whether the 80% interval excludes zero -- a weak claim,
                     # deliberately not called "significant".
                     "excludes_zero_80": bool(
-                        np.percentile(values, 10) > 0 or np.percentile(values, 90) < 0
+                        reportable
+                        and (np.percentile(values, 10) > 0 or np.percentile(values, 90) < 0)
                     ),
                 }
             )
