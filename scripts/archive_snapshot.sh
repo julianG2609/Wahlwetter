@@ -5,7 +5,10 @@
 # remain fully versioned and diffable -- which is also how we detect that dawum
 # has silently corrected a past survey, since the API only exposes current state.
 #
-# Creates the branch on first use. Safe to run when there is nothing to do.
+# Creates the branch on first use. Safe to run repeatedly: re-archiving a
+# snapshot that is already on the branch is a no-op, and the work happens on a
+# uniquely named temporary branch so nothing is left behind to collide with the
+# next run in the same clone.
 set -euo pipefail
 
 BRANCH="data-raw"
@@ -18,7 +21,8 @@ if [ ${#snapshots[@]} -eq 0 ]; then
   exit 0
 fi
 
-snapshot="${snapshots[-1]}"
+# Portable last-element access: bash 3.2 (macOS) rejects [-1].
+snapshot="${snapshots[$((${#snapshots[@]} - 1))]}"
 name="$(basename "$snapshot")"
 # Snapshot names start with an ISO-ish UTC stamp: 20260922T113117Z-<sha12>.json.gz
 year="${name:0:4}"
@@ -26,17 +30,21 @@ month="${name:4:2}"
 target="snapshots/$year/$month/$name"
 
 worktree="$(mktemp -d)"
-cleanup() { git worktree remove --force "$worktree" >/dev/null 2>&1 || true; }
+tmp_branch="archive-snapshot-$$-${RANDOM}"
+cleanup() {
+  git worktree remove --force "$worktree" >/dev/null 2>&1 || true
+  git branch -D "$tmp_branch" >/dev/null 2>&1 || true
+}
 trap cleanup EXIT
 
 if git ls-remote --exit-code --heads origin "$BRANCH" >/dev/null 2>&1; then
   git fetch --depth=1 origin "$BRANCH"
-  git worktree add --detach "$worktree" FETCH_HEAD
-  git -C "$worktree" switch -c "$BRANCH"
+  git worktree add --detach "$worktree" FETCH_HEAD >/dev/null
+  git -C "$worktree" switch -c "$tmp_branch" >/dev/null
 else
   echo "archive_snapshot: creating orphan branch $BRANCH"
-  git worktree add --detach "$worktree" HEAD
-  git -C "$worktree" checkout --orphan "$BRANCH"
+  git worktree add --detach "$worktree" HEAD >/dev/null
+  git -C "$worktree" checkout --orphan "$tmp_branch" >/dev/null
   git -C "$worktree" rm -rqf . >/dev/null 2>&1 || true
   cat > "$worktree/README.md" <<'README'
 # Raw snapshots
@@ -53,19 +61,21 @@ README
   git -C "$worktree" add README.md
 fi
 
-mkdir -p "$worktree/$(dirname "$target")"
 if [ -e "$worktree/$target" ]; then
   echo "archive_snapshot: $target already archived, nothing to do"
   exit 0
 fi
-cp "$snapshot" "$worktree/$target"
 
+mkdir -p "$worktree/$(dirname "$target")"
+cp "$snapshot" "$worktree/$target"
 git -C "$worktree" add "$target"
+
 if git -C "$worktree" diff --cached --quiet; then
   echo "archive_snapshot: nothing staged"
   exit 0
 fi
 
 git -C "$worktree" commit -q -m "Archive snapshot $name"
-git -C "$worktree" push -q origin "$BRANCH"
+# Push the temporary branch onto the real one; never create a local `data-raw`.
+git -C "$worktree" push -q origin "HEAD:refs/heads/$BRANCH"
 echo "archive_snapshot: pushed $target"
