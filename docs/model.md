@@ -199,6 +199,86 @@ This is a mitigation, not a fix. The proper treatment is stronger hierarchical
 shrinkage so thin institutes are pulled towards zero rather than filtered after
 the fact.
 
+## Backtest against the baselines
+
+`uv run python` via `wahlwetter.model.backtest`, writing
+`data/backtest/model_vs_baselines.json`. Three elections, horizons of 1, 14 and
+30 days, a 365-day fitting window clamped to the earliest available poll.
+
+Both sides are scored on the same quantity, deliberately:
+
+* **Availability is publication**, not fieldwork, for the model and the
+  baselines alike.
+* **The party set is the model's.** The model pools rarely-reported parties
+  into the reference category, so the official result is aggregated the same
+  way and the baselines are re-run on that set. Scoring the model on parties it
+  does not estimate, while the baselines impute them, would rig the comparison.
+
+### Result: the model does not currently beat the baselines
+
+Mean MAE in percentage points, averaged over the three elections:
+
+| method | 1d | 14d | 30d |
+| --- | --- | --- | --- |
+| `bayesian_trend` | 0.998 | 1.428 | 1.886 |
+| `dawum_style_trend` | 1.024 | 1.414 | 1.918 |
+| `last_poll_per_institute` | 1.113 | 1.513 | 1.979 |
+| `rolling_average_14d` | 1.158 | 1.518 | 1.909 |
+| `rolling_average_14d_n_weighted` | 1.150 | 1.518 | 1.988 |
+| `rolling_average_30d` | 1.341 | 1.677 | 2.061 |
+
+That table appears to put the model narrowly ahead at 1d and 30d. **It should
+not be read that way**, for two reasons.
+
+**It wins 4 of 9 times.** Per election and horizon, against the best baseline
+in each cell:
+
+| | 1d | 14d | 30d |
+| --- | --- | --- | --- |
+| 2017 | −0.104 | −0.107 | −0.253 |
+| 2021 | −0.106 | +0.038 | +0.067 |
+| 2025 | +0.133 | +0.110 | +0.197 |
+
+(negative = model better). The model wins every 2017 cell and loses every 2025
+cell. That is a pattern worth understanding, not a win: with three elections it
+is indistinguishable from noise, and the aggregate margin of 0.026 points at 1d
+is an order of magnitude smaller than the spread between elections.
+
+**Six of the nine fits failed their diagnostics**, and the aggregate is
+therefore built mostly on fits that cannot be trusted:
+
+| fit | diagnostics | problem |
+| --- | --- | --- |
+| 2017 h=1 | FAIL | R-hat 1.0148; 753/3000 transitions at max treedepth |
+| 2017 h=14 | FAIL | 750/3000 at max treedepth |
+| 2017 h=30 | pass | |
+| 2021 h=1 | FAIL | R-hat 1.0108; 1500/3000 at max treedepth |
+| 2021 h=14 | FAIL | 843/3000 at max treedepth |
+| 2021 h=30 | FAIL | 750/3000 at max treedepth |
+| 2025 h=1 | pass | |
+| 2025 h=14 | pass | |
+| 2025 h=30 | FAIL | R-hat 1.0135 |
+
+The dominant failure is treedepth saturation, run at `max_treedepth = 10` and
+`adapt_delta = 0.92` to keep nine fits tractable. Saturation is an efficiency
+problem rather than outright bias, but combined with R-hat above 1.01 these
+numbers are not trustworthy.
+
+**The conclusion stands regardless: there is no evidence the model beats the
+baselines.** It must not be presented on the site as better until there is.
+
+### Why the model might be losing on 2025
+
+Worth investigating rather than assuming:
+
+- The 2025 window is the one with the most polls and the least movement, which
+  is where a well-tuned average is hardest to beat.
+- BSW is modelled in 2025 but not in 2017 or 2021, so the party sets differ and
+  the MAE denominators differ with them.
+- The house effects are estimated over the whole window but scored at its end;
+  if they drifted, the model is carrying stale corrections that the
+  recency-weighted baselines are not.
+
 ## Known limitations
 
 - **Not a forecast.** This estimates current opinion. Turning it into an

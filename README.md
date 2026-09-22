@@ -145,6 +145,11 @@ a random walk on a log-ratio scale, pushed through a softmax so shares sum to
 one by construction, with institute house effects and an estimated effective
 sample size. Writes `data/model/bundestag_trend.json`.
 
+**The model does not currently beat the simple baselines** — it wins 4 of 9
+backtest cells, and 6 of those 9 fits failed their convergence checks. It must
+not be presented as better until that changes. See
+[`docs/model.md`](docs/model.md).
+
 Convergence is **gated, not reported** — the command refuses to write output
 from a fit that fails its R-hat, ESS, divergence or treedepth checks. See
 [`docs/model.md`](docs/model.md), which also documents why survey-method effects
@@ -191,6 +196,6 @@ be stated in the Datenschutzerklärung.
 | 0 | Scaffolding, tooling, CI (done) |
 | 1 | Ingestion from the dawum API into tidy Parquet tables (done) |
 | 2 | Official election results as ground truth; simple baselines (done) |
-| 3 | Bayesian state-space model (Bundestag), backtested against the baselines (model built; backtest pending) |
+| 3 | Bayesian state-space model (Bundestag), backtested against the baselines (built and backtested; does not yet beat them) |
 | 4 | Seat allocation (Sainte-Laguë/Schepers) and coalition probabilities |
 | 5 | Quarto website |
