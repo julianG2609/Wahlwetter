@@ -1,0 +1,23 @@
+# Data license
+
+The *code* in this repository is licensed under the MIT License (see `LICENSE`).
+This file covers the *data*: everything under `data/`, the raw snapshots on the
+`data-raw` branch, and any derived JSON published by the website.
+
+## Upstream
+
+Poll data is obtained from the dawum.de API. dawum publishes its database under
+the **Open Data Commons Open Database License (ODbL) v1.0**.
+
+## Consequence for this project
+
+The normalized tables and model outputs in this repository are a derived
+database under ODbL terms. They are therefore published under the **same
+license**, ODbL v1.0, with attribution to dawum.de.
+
+Canonical license text: https://opendatacommons.org/licenses/odbl/1-0/
+
+> NOTE: the full ODbL v1.0 text has not been vendored into this repository yet.
+> It should be copied verbatim from the canonical URL above into
+> `LICENSE-DATA-ODbL.txt` before the repository is made public. It is
+> deliberately not reproduced from memory here.
