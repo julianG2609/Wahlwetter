@@ -1,0 +1,31 @@
+# Python
+__pycache__/
+*.py[cod]
+.venv/
+*.egg-info/
+build/
+dist/
+
+# Tooling caches
+.pytest_cache/
+.ruff_cache/
+.coverage
+htmlcov/
+coverage.xml
+
+# Stan build artefacts (Phase 3)
+*.hpp
+src/stan/**/*.exe
+.cmdstan/
+
+# Quarto (Phase 5)
+/_site/
+/.quarto/
+
+# Raw snapshots live on the orphan `data-raw` branch, never on main.
+data/raw/*
+!data/raw/.gitkeep
+
+# Local scratch
+.DS_Store
+scratch/

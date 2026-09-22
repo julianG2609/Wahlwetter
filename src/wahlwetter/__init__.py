@@ -1,0 +1,5 @@
+"""Wahlwetter: uncertainty-aware aggregation of German election polls."""
+
+__version__ = "0.1.0"
+
+__all__ = ["__version__"]
