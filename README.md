@@ -81,6 +81,53 @@ The Stan toolchain is an optional extra and is not needed for the test suite:
 uv sync --group dev --extra model
 ```
 
+## Ingesting data
+
+```bash
+uv run wahlwetter ingest --source dawum
+```
+
+This checks `last_update.txt` with a conditional request and does nothing
+further unless dawum reports a change, so running it repeatedly is cheap and
+polite. Useful flags:
+
+| Flag | Effect |
+| --- | --- |
+| `--force` | fetch even when dawum reports no update |
+| `--from-snapshot PATH` | replay an archived `.json.gz`, making no request at all |
+| `--fail-on-error-findings` | exit non-zero if any survey was quarantined |
+
+Ingestion is idempotent: running it twice leaves the Parquet files
+byte-identical, which is asserted both in the test suite and in
+`ingest.yml`.
+
+## Data model
+
+`data/tables/` holds tidy Parquet, queryable directly with DuckDB:
+
+```sql
+SELECT p.shortcut, r.share, s.fieldwork_midpoint
+FROM 'data/tables/results.parquet' r
+JOIN 'data/tables/surveys.parquet' s USING (survey_id)
+JOIN 'data/tables/parties.parquet' p USING (party_id)
+WHERE s.parliament_id = '0'
+ORDER BY s.fieldwork_midpoint DESC;
+```
+
+- `surveys` — one row per poll: institute, commissioning client, method,
+  parliament, publication date, fieldwork start/end and midpoint, sample size,
+  `source`, `source_id`, `retrieved_at`, and a `warnings` column naming any
+  non-fatal validation rule that fired.
+- `results` — long format: `survey_id`, `party_id`, `share`. A party absent
+  from a poll has **no row**; that is not the same as a zero share (see
+  [`docs/data_source.md`](docs/data_source.md)).
+- `parliaments`, `institutes`, `taskers`, `methods`, `parties` — dimensions.
+
+Surveys failing a validation rule at error severity are kept out of these
+tables and written verbatim to `data/quarantine/`, never dropped.
+`config/parties_by_parliament.json` is a reviewed allowlist: a party appearing
+somewhere new raises a warning so it can be checked by hand.
+
 ## Privacy
 
 The site will carry no trackers and no third-party CDNs or fonts; all assets are
@@ -91,8 +138,8 @@ be stated in the Datenschutzerklärung.
 
 | Phase | Scope |
 | --- | --- |
-| 0 | Scaffolding, tooling, CI |
-| 1 | Ingestion from the dawum API into tidy Parquet tables |
+| 0 | Scaffolding, tooling, CI (done) |
+| 1 | Ingestion from the dawum API into tidy Parquet tables (done) |
 | 2 | Official election results as ground truth; simple baselines |
 | 3 | Bayesian state-space model (Bundestag), backtested against the baselines |
 | 4 | Seat allocation (Sainte-Laguë/Schepers) and coalition probabilities |

@@ -1,0 +1,115 @@
+name: Ingest
+
+on:
+  schedule:
+    # 05:17 UTC daily. Off the hour to avoid the scheduling stampede on
+    # GitHub's shared runners, which delays cron jobs that ask for :00.
+    - cron: "17 5 * * *"
+  workflow_dispatch:
+    inputs:
+      force:
+        description: "Fetch even when dawum reports no update"
+        type: boolean
+        default: false
+
+permissions:
+  contents: write
+
+concurrency:
+  # Queue rather than cancel: a cancelled run could leave the data branch and
+  # main disagreeing about which snapshot was last archived.
+  group: ingest
+  cancel-in-progress: false
+
+jobs:
+  ingest:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Install uv
+        uses: astral-sh/setup-uv@v5
+        with:
+          enable-cache: true
+
+      - name: Install dependencies
+        run: uv sync --group dev
+
+      - name: Run ingestion
+        id: ingest
+        run: |
+          set -o pipefail
+          uv run wahlwetter ingest --source dawum ${{ inputs.force && '--force' || '' }} \
+            | tee summary.json
+          {
+            echo "fetched=$(jq -r .fetched summary.json)"
+            echo "surveys=$(jq -r .surveys summary.json)"
+            echo "quarantined=$(jq -r .quarantined summary.json)"
+            echo "warnings=$(jq -r .warnings summary.json)"
+          } >> "$GITHUB_OUTPUT"
+
+      - name: Verify ingestion is idempotent
+        if: steps.ingest.outputs.fetched == 'true'
+        run: |
+          # Replays the snapshot just written, so this costs no extra request
+          # to dawum -- the run stays within one request per endpoint.
+          snapshot="$(ls -1 data/raw/*.json.gz | tail -1)"
+          uv run wahlwetter ingest --source dawum --from-snapshot "$snapshot" > /dev/null
+          if ! git diff --quiet -- data/tables data/state; then
+            echo "::error::a second ingest of the same snapshot changed the tables"
+            git diff --stat -- data/tables data/state
+            exit 1
+          fi
+          echo "second run produced no changes"
+
+      - name: Archive raw snapshot to the data-raw branch
+        if: steps.ingest.outputs.fetched == 'true'
+        run: |
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          bash scripts/archive_snapshot.sh data/raw
+
+      - name: Commit updated tables
+        id: commit
+        if: steps.ingest.outputs.fetched == 'true'
+        run: |
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git add data/tables data/state data/quarantine
+          if git diff --cached --quiet; then
+            echo "no table changes to commit"
+            exit 0
+          fi
+          git commit -m "Ingest dawum: ${{ steps.ingest.outputs.surveys }} surveys, \
+          ${{ steps.ingest.outputs.quarantined }} quarantined
+
+          Automated run of .github/workflows/ingest.yml."
+          git push
+
+      - name: Upload quarantine report
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: quarantine-report
+          path: data/quarantine/
+          if-no-files-found: ignore
+
+      - name: Job summary
+        if: always()
+        run: |
+          {
+            echo "| metric | value |"
+            echo "| --- | --- |"
+            echo "| fetched | ${{ steps.ingest.outputs.fetched }} |"
+            echo "| surveys accepted | ${{ steps.ingest.outputs.surveys }} |"
+            echo "| quarantined | ${{ steps.ingest.outputs.quarantined }} |"
+            echo "| warnings | ${{ steps.ingest.outputs.warnings }} |"
+          } >> "$GITHUB_STEP_SUMMARY"
+
+      # Deliberately last: quarantined rows are committed and uploaded first,
+      # so the evidence survives even though the run goes red.
+      - name: Fail if anything was quarantined
+        if: steps.ingest.outputs.quarantined != '0' && steps.ingest.outputs.quarantined != ''
+        run: |
+          echo "::error::${{ steps.ingest.outputs.quarantined }} survey(s) quarantined"
+          exit 1
