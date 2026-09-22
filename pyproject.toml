@@ -14,6 +14,9 @@ dependencies = [
     "pyarrow>=16",
 ]
 
+[project.scripts]
+wahlwetter = "wahlwetter.cli:main"
+
 [project.optional-dependencies]
 # Stan toolchain. Deliberately NOT installed by the lint/test CI job: compiling
 # CmdStan is slow and only becomes relevant in Phase 3, which gets its own
