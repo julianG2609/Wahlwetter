@@ -1,0 +1,92 @@
+---
+title: "Wahlumfragen zur Bundestagswahl"
+include-in-header:
+  - text: |
+      <script src="assets/vendor/d3.min.js"></script>
+      <script src="assets/vendor/plot.umd.min.js"></script>
+      <script src="assets/charts.js"></script>
+---
+
+::: {.lede}
+Eine Schätzung der aktuellen politischen Stimmung aus allen veröffentlichten
+Wahlumfragen — mit der Unsicherheit, die dazugehört.
+:::
+
+::: {.note .caution}
+**Das ist keine Prognose.** Gezeigt wird, wie die Parteien *heute* in Umfragen
+stehen, nicht wie eine Wahl ausgehen würde. Zwischen heute und einem Wahltag
+liegt Meinungsänderung, die hier nicht modelliert wird.
+
+**Und noch nicht validiert.** Das Modell schlägt in unseren Rückrechnungen die
+einfachen Vergleichsverfahren [bislang nicht](methodik.qmd#validierung). Bis
+sich das ändert, sind diese Zahlen nicht besser als ein gewichteter
+Durchschnitt.
+:::
+
+## Aktueller Stand
+
+<div id="latest-chart" class="chart"></div>
+
+<p class="stamp" data-stamp></p>
+
+Der Punkt ist der Median, der dicke Balken das 80-%-Intervall, der dünne das
+95-%-Intervall. Die gestrichelte Linie markiert die Fünf-Prozent-Hürde.
+
+## Ist die neueste Umfrage eine Änderung?
+
+<div id="newest-poll"></div>
+
+<script>
+Wahlwetter.mountLatest("latest-chart", "data/overview.json");
+
+Wahlwetter.fetchJSON("data/overview.json").then(function (d) {
+  var node = document.getElementById("newest-poll");
+  var n = d.newest_poll;
+  if (!n) { node.textContent = "Keine Umfrage verfügbar."; return; }
+
+  var notable = n.parties.filter(function (p) { return p.notable; });
+  var names = d.party_names || {};
+
+  var rows = n.parties.map(function (p) {
+    return "<tr><td>" + (names[p.party_id] || p.party_id) + "</td>" +
+      '<td class="num">' + p.value.toFixed(1) + "</td>" +
+      '<td class="num">' + p.trend.toFixed(1) + "</td>" +
+      '<td class="num">' + (p.difference_pp > 0 ? "+" : "") + p.difference_pp.toFixed(1) + "</td>" +
+      '<td class="num">' + (p.z === null ? "–" : p.z.toFixed(1)) + "</td></tr>";
+  }).join("");
+
+  node.innerHTML =
+    "<p>Neueste Umfrage: <strong>" + n.institute + "</strong>, Feldende " +
+    Wahlwetter.formatDate(n.fieldwork_end) + ". " +
+    (notable.length === 0
+      ? "Keine Partei weicht ungewöhnlich stark vom Trend ab."
+      : "Auffällig: " + notable.map(function (p) {
+          return names[p.party_id] || p.party_id;
+        }).join(", ") + ".") +
+    "</p>" +
+    "<table><thead><tr><th>Partei</th><th class='num'>Umfrage</th>" +
+    "<th class='num'>Trend</th><th class='num'>Differenz</th>" +
+    "<th class='num'>in Standard&shy;abweichungen</th></tr></thead><tbody>" +
+    rows + "</tbody></table>";
+});
+</script>
+
+::: {.note}
+Die letzte Spalte setzt die Differenz ins Verhältnis zur Unsicherheit *dieses
+einzelnen Wertes*. Zwei Prozentpunkte bedeuten bei einer kleinen Partei etwas
+anderes als bei einer großen.
+
+Ein Wert über 2 heißt **nicht**, dass sich etwas geändert hat. Bei acht
+Parteien und rund zwanzig Umfragen im Monat ist so ein Ausschlag auch dann
+regelmäßig zu erwarten, wenn sich gar nichts bewegt.
+:::
+
+## Quellen
+
+Umfragedaten von [dawum.de](https://dawum.de), veröffentlicht unter der
+[Open Database License (ODbL)](https://opendatacommons.org/licenses/odbl/1-0/).
+Amtliche Wahlergebnisse von [Die Bundeswahlleiterin](https://www.bundeswahlleiterin.de)
+/ Statistisches Bundesamt (Destatis), veröffentlicht unter
+[Datenlizenz Deutschland – Namensnennung – Version 2.0](https://www.govdata.de/dl-de/by-2-0).
+
+Die hier veröffentlichte abgeleitete Datenbank steht ebenfalls unter der ODbL.

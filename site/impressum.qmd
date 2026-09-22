@@ -1,0 +1,43 @@
+---
+title: "Impressum"
+---
+
+::: {.note .caution}
+**Diese Seite ist ein Platzhalter und muss vor einer Veröffentlichung
+ausgefüllt werden.** Ein fehlendes oder unvollständiges Impressum kann
+abgemahnt werden.
+:::
+
+## Angaben gemäß § 5 DDG
+
+*(auszufüllen)*
+
+```
+Name
+Anschrift
+```
+
+## Kontakt
+
+*(auszufüllen: E-Mail-Adresse, ggf. Telefon)*
+
+## Verantwortlich für den Inhalt nach § 18 Abs. 2 MStV
+
+*(auszufüllen: Name und Anschrift)*
+
+## Haftung für Inhalte und Links
+
+*(auszufüllen)*
+
+## Hinweis zu den Daten
+
+Die dargestellten Umfragewerte stammen von [dawum.de](https://dawum.de) und
+stehen unter der [ODbL](https://opendatacommons.org/licenses/odbl/1-0/).
+Amtliche Wahlergebnisse stammen von
+[Die Bundeswahlleiterin](https://www.bundeswahlleiterin.de) / Statistisches
+Bundesamt (Destatis) und stehen unter
+[DL-DE-BY 2.0](https://www.govdata.de/dl-de/by-2-0).
+
+Für Richtigkeit, Vollständigkeit und Aktualität der zugrunde liegenden Daten
+wird keine Gewähr übernommen. Die hier gezeigten Schätzungen sind keine
+Prognosen.

@@ -17,7 +17,10 @@ license**, ODbL v1.0, with attribution to dawum.de.
 
 Canonical license text: https://opendatacommons.org/licenses/odbl/1-0/
 
-> NOTE: the full ODbL v1.0 text has not been vendored into this repository yet.
-> It should be copied verbatim from the canonical URL above into
-> `LICENSE-DATA-ODbL.txt` before the repository is made public. It is
-> deliberately not reproduced from memory here.
+The full licence text is vendored in `LICENSE-DATA-ODbL.txt`, retrieved from
+the canonical URL above on 2026-09-22. That URL remains authoritative.
+
+dawum requires that derived databases carry the licence text or a link to it in
+the database *and its documentation*, together with attribution to dawum.de.
+This file, `LICENSE-DATA-ODbL.txt`, the README and the site's methodology and
+footer all satisfy that.

@@ -1,0 +1,56 @@
+project:
+  type: website
+  output-dir: _site
+  # Quarto does not copy these by itself: the JSON is generated rather than
+  # authored, and without this the charts 404 in production while working fine
+  # in a local preview.
+  resources:
+    - data/**
+    - assets/**
+
+website:
+  title: "Wahlwetter"
+  description: "Wahlumfragen zur Bundestagswahl, mit Unsicherheit gerechnet."
+  navbar:
+    left:
+      - href: index.qmd
+        text: Überblick
+      - href: trend.qmd
+        text: Trend
+      - href: pollsters.qmd
+        text: Institute
+      - href: methodik.qmd
+        text: Methodik
+    right:
+      - href: impressum.qmd
+        text: Impressum
+      - href: datenschutz.qmd
+        text: Datenschutz
+  page-footer:
+    center: |
+      Daten von [dawum.de](https://dawum.de) ([ODbL](https://opendatacommons.org/licenses/odbl/1-0/)) ·
+      Amtliche Ergebnisse: [Die Bundeswahlleiterin](https://www.bundeswahlleiterin.de)
+      ([DL-DE-BY 2.0](https://www.govdata.de/dl-de/by-2-0)) ·
+      [Quellcode](https://github.com/julianG2609/Wahlwetter)
+
+format:
+  html:
+    theme: none
+    css: assets/styles.css
+    toc: false
+    # Everything is served from this site. No CDN, no external fonts: both
+    # would expose visitor IP addresses to a third party.
+    embed-resources: false
+    anchor-sections: true
+    link-external-newwindow: true
+    include-in-header:
+      - text: |
+          <meta name="referrer" content="no-referrer">
+          <!-- noindex while Impressum and Datenschutzerklaerung are still
+               placeholders. A publicly reachable German site without a valid
+               Impressum can be abgemahnt; keeping it out of search results
+               limits exposure without hiding it from anyone given the link.
+               Change to "index,follow" once those two pages are filled in. -->
+          <meta name="robots" content="noindex,nofollow">
+
+lang: de

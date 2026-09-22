@@ -1,0 +1,97 @@
+/* Self-hosted only: the font stack is the visitor's own system fonts, so no
+   font file is requested from anywhere. */
+:root {
+  --fg: #16181d;
+  --fg-muted: #5b6270;
+  --bg: #ffffff;
+  --bg-soft: #f6f7f9;
+  --border: #d9dde3;
+  --accent: #2f4858;
+  --warn-bg: #fff8e6;
+  --warn-border: #e5c76b;
+  --max-width: 52rem;
+  font-size: 17px;
+}
+
+@media (prefers-color-scheme: dark) {
+  :root {
+    --fg: #e8eaed;
+    --fg-muted: #a2a9b4;
+    --bg: #14161a;
+    --bg-soft: #1c1f24;
+    --border: #333941;
+    --accent: #9fc3d8;
+    --warn-bg: #2a2418;
+    --warn-border: #6b5a2b;
+  }
+}
+
+* { box-sizing: border-box; }
+
+body {
+  margin: 0;
+  background: var(--bg);
+  color: var(--fg);
+  font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto,
+    "Helvetica Neue", Arial, "Noto Sans", sans-serif;
+  line-height: 1.6;
+}
+
+main, .page-columns { max-width: var(--max-width); margin: 0 auto; padding: 0 1rem 4rem; }
+
+.navbar {
+  border-bottom: 1px solid var(--border);
+  background: var(--bg-soft);
+  margin-bottom: 2rem;
+}
+.navbar .navbar-nav { display: flex; gap: 1rem; list-style: none; padding: 0; }
+.navbar a { color: var(--fg); text-decoration: none; padding: 0.75rem 0; }
+.navbar a:hover { text-decoration: underline; }
+
+h1 { font-size: 1.9rem; line-height: 1.25; margin: 0 0 0.5rem; }
+h2 { font-size: 1.3rem; margin: 2.5rem 0 0.75rem; }
+h3 { font-size: 1.05rem; margin: 1.75rem 0 0.5rem; }
+
+a { color: var(--accent); }
+
+.lede { font-size: 1.1rem; color: var(--fg-muted); margin-bottom: 2rem; }
+
+.note {
+  background: var(--bg-soft);
+  border-left: 3px solid var(--border);
+  padding: 0.75rem 1rem;
+  margin: 1.5rem 0;
+  font-size: 0.95rem;
+}
+.note.caution { background: var(--warn-bg); border-left-color: var(--warn-border); }
+.note p:first-child { margin-top: 0; }
+.note p:last-child { margin-bottom: 0; }
+
+table { border-collapse: collapse; width: 100%; font-size: 0.95rem; }
+th, td { text-align: left; padding: 0.4rem 0.6rem; border-bottom: 1px solid var(--border); }
+th { font-weight: 600; color: var(--fg-muted); font-size: 0.85rem; text-transform: uppercase;
+     letter-spacing: 0.03em; }
+td.num, th.num { text-align: right; font-variant-numeric: tabular-nums; }
+
+figure { margin: 1.5rem 0; }
+figcaption { font-size: 0.85rem; color: var(--fg-muted); margin-top: 0.5rem; }
+
+.chart { width: 100%; overflow-x: auto; }
+.chart svg { max-width: 100%; height: auto; }
+
+.legend { display: flex; flex-wrap: wrap; gap: 0.75rem; font-size: 0.85rem; margin: 0.5rem 0 1rem; }
+.legend span { display: inline-flex; align-items: center; gap: 0.35rem; }
+.legend i { width: 0.8rem; height: 0.8rem; border-radius: 2px; display: inline-block; }
+
+.stamp { font-size: 0.85rem; color: var(--fg-muted); }
+
+.page-footer, footer {
+  border-top: 1px solid var(--border);
+  margin-top: 3rem;
+  padding: 1.5rem 1rem;
+  font-size: 0.85rem;
+  color: var(--fg-muted);
+  text-align: center;
+}
+
+code { background: var(--bg-soft); padding: 0.1em 0.3em; border-radius: 3px; font-size: 0.9em; }

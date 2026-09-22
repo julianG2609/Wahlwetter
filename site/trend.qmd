@@ -1,0 +1,63 @@
+---
+title: "Trend"
+include-in-header:
+  - text: |
+      <script src="assets/vendor/d3.min.js"></script>
+      <script src="assets/vendor/plot.umd.min.js"></script>
+      <script src="assets/charts.js"></script>
+---
+
+::: {.lede}
+Geschätzter Stimmenanteil je Tag seit der Bundestagswahl 2025.
+:::
+
+<div id="trend-chart" class="chart"></div>
+
+<p class="stamp" data-stamp></p>
+
+Die Linie ist der Median, die kräftigere Fläche das 80-%-Intervall, die blassere
+das 95-%-Intervall.
+
+::: {.note}
+**Die Flächen sind der eigentliche Inhalt.** Die Linie allein suggeriert eine
+Genauigkeit, die nicht da ist. Zwei Parteien, deren Bänder sich überlappen,
+sind nicht unterscheidbar — unabhängig davon, welche Linie oben liegt.
+
+Das Fenster beginnt an der Bundestagswahl vom 23. Februar 2025. Davor galt eine
+andere Parteienlandschaft, deshalb fließen ältere Umfragen nicht ein. Am linken
+Rand stützt sich die Schätzung entsprechend stärker auf die Modellannahmen.
+:::
+
+<script>
+Wahlwetter.mountTrend("trend-chart", "data/trend.json", { height: 460 });
+</script>
+
+## Große Parteien einzeln
+
+<div id="trend-big" class="chart"></div>
+
+<script>
+Wahlwetter.mountTrend("trend-big", "data/trend.json", {
+  only: ["1", "2", "4", "7"], height: 340
+});
+</script>
+
+## Parteien an der Fünf-Prozent-Hürde
+
+<div id="trend-small" class="chart"></div>
+
+::: {.note .caution}
+Für Parteien nahe der Fünf-Prozent-Hürde ist die Unsicherheit entscheidend, nicht
+der Median. Eine Partei bei 4,6 % mit einem Intervall von 4,3 bis 4,9 ist etwas
+anderes als eine Partei bei 4,6 % mit einem Intervall von 3,5 bis 5,8.
+
+Eine Wahrscheinlichkeit für das Überspringen der Hürde wird hier bewusst
+**nicht** angegeben. Dafür bräuchte es ein Prognosemodell für den Wahltag; die
+Intervalle hier beschreiben die heutige Stimmung, nicht einen Wahlausgang.
+:::
+
+<script>
+Wahlwetter.mountTrend("trend-small", "data/trend.json", {
+  only: ["3", "5", "23", "0"], height: 340
+});
+</script>

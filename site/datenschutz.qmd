@@ -1,0 +1,46 @@
+---
+title: "Datenschutzerklärung"
+---
+
+::: {.note .caution}
+**Diese Seite ist ein Platzhalter und muss vor einer Veröffentlichung
+ausgefüllt und juristisch geprüft werden.** Die folgenden Punkte sind eine
+Bestandsaufnahme dessen, was diese Seite technisch tut — keine fertige
+Datenschutzerklärung.
+:::
+
+## Was diese Seite nicht tut
+
+- **Keine Tracker, keine Analyse-Werkzeuge, keine Werbung.**
+- **Keine Cookies.** Die Seite setzt keine.
+- **Keine externen Inhalte.** Schriftarten, Diagramm-Bibliotheken und alle
+  Daten werden von dieser Domain ausgeliefert. Es werden keine Ressourcen von
+  Content-Delivery-Netzwerken nachgeladen, die Ihre IP-Adresse an Dritte
+  übermitteln würden.
+- **Keine Anmeldung, keine Formulare, keine Übermittlung personenbezogener
+  Daten an uns.**
+
+## Was trotzdem passiert: Hosting bei GitHub Pages
+
+::: {.note .caution}
+Diese Seite wird über **GitHub Pages** ausgeliefert, einen Dienst der GitHub,
+Inc. (USA). Beim Abruf der Seite verarbeitet GitHub technisch notwendige
+Verbindungsdaten, **einschließlich Ihrer IP-Adresse**. Darauf haben wir keinen
+Einfluss, und es lässt sich bei diesem Hosting-Modell nicht vermeiden.
+
+Dies erfolgt nach derzeitiger Einschätzung auf Grundlage von Art. 6 Abs. 1
+lit. f DSGVO. Eine Übermittlung in die USA ist dabei nicht ausgeschlossen.
+
+*(Dieser Abschnitt muss vor Veröffentlichung geprüft und gegebenenfalls um
+Angaben zu GitHubs Datenschutzerklärung, zur Rechtsgrundlage und zu
+Betroffenenrechten ergänzt werden.)*
+:::
+
+## Verantwortlicher
+
+*(auszufüllen — siehe [Impressum](impressum.qmd))*
+
+## Ihre Rechte
+
+*(auszufüllen: Auskunft, Berichtigung, Löschung, Einschränkung, Widerspruch,
+Beschwerde bei einer Aufsichtsbehörde)*

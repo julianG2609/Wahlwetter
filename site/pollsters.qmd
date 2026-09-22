@@ -1,0 +1,97 @@
+---
+title: "Institute"
+include-in-header:
+  - text: |
+      <script src="assets/vendor/d3.min.js"></script>
+      <script src="assets/vendor/plot.umd.min.js"></script>
+      <script src="assets/charts.js"></script>
+---
+
+::: {.lede}
+Systematische Abweichungen der Institute vom gemeinsamen Trend — und die
+Umfragen, auf denen sie beruhen.
+:::
+
+## Institutseffekte
+
+<div id="house-chart" class="chart"></div>
+
+<p class="stamp" data-stamp></p>
+
+::: {.note .caution}
+**Ein Institutseffekt ist kein Vorwurf.** Institute unterscheiden sich in
+Gewichtung, Fragebogen und Erhebungsmethode. Eine systematische Abweichung vom
+Durchschnitt ist ein methodischer Unterschied, kein Fehler — und schon gar kein
+Beleg für Absicht.
+
+Die Effekte sind so konstruiert, dass sie sich über alle Institute zu null
+addieren. Sie messen also den Abstand zum Mittel der Institute, nicht den
+Abstand zur Wahrheit. Wenn alle Institute in dieselbe Richtung danebenliegen,
+ist das hier nicht sichtbar.
+
+Kräftige Balken: das 80-%-Intervall schließt die Null aus. Auch das ist ein
+schwaches Kriterium und ausdrücklich **nicht** als „signifikant“ zu lesen.
+:::
+
+<div id="withheld"></div>
+
+## Umfragen
+
+<div id="poll-table"></div>
+
+<script>
+Wahlwetter.mountHouseEffects("house-chart", "data/pollsters.json");
+
+Wahlwetter.fetchJSON("data/pollsters.json").then(function (d) {
+  var names = d.party_names || {};
+
+  var withheld = d.house_effects_withheld || [];
+  if (withheld.length) {
+    var institutes = Array.from(new Set(withheld.map(function (h) {
+      return h.institute_name + " (" + h.n_polls + ")";
+    })));
+    document.getElementById("withheld").innerHTML =
+      '<p class="note">Für folgende Institute wird kein Institutseffekt ' +
+      "ausgewiesen, weil im Zeitfenster zu wenige Umfragen vorliegen: " +
+      institutes.join(", ") + ". Ihre Umfragen fließen in den Trend ein; " +
+      "nur die Schätzung des Instituts&shy;effekts wäre nicht belastbar.</p>";
+  }
+
+  var parties = ["1", "2", "7", "4", "5", "3", "23", "0"];
+  var head = "<tr><th>Institut</th><th>Auftraggeber</th><th>Methode</th>" +
+    "<th>Feldzeit</th><th class='num'>Befragte</th>" +
+    parties.map(function (p) {
+      return "<th class='num'>" + (names[p] || p) + "</th>";
+    }).join("") + "</tr>";
+
+  var body = d.polls.map(function (p) {
+    return "<tr><td>" + p.institute + "</td>" +
+      "<td>" + (p.tasker || "–") + "</td>" +
+      "<td>" + p.method + "</td>" +
+      "<td>" + Wahlwetter.formatDate(p.fieldwork_start) + "–" +
+        Wahlwetter.formatDate(p.fieldwork_end) + "</td>" +
+      "<td class='num'>" + (p.sample_size == null ? "–" : p.sample_size) + "</td>" +
+      parties.map(function (id) {
+        var v = p.shares[id];
+        return "<td class='num'>" + (v == null ? "–" : v.toFixed(1)) + "</td>";
+      }).join("") + "</tr>";
+  }).join("");
+
+  document.getElementById("poll-table").innerHTML =
+    "<p>Die " + d.polls.length + " jüngsten Umfragen zur Bundestagswahl.</p>" +
+    "<div style='overflow-x:auto'><table><thead>" + head +
+    "</thead><tbody>" + body + "</tbody></table></div>";
+});
+</script>
+
+::: {.note}
+„–“ heißt, dass das Institut diese Partei nicht getrennt ausgewiesen hat. Der
+Wert steckt dann in „Sonstige“ — er ist **nicht** null. Das Modell rechnet das
+entsprechend: Es vergleicht in diesem Fall die Summe der betroffenen Parteien
+mit dem einen veröffentlichten Wert, statt einen Wert zu erfinden.
+:::
+
+## Quelle
+
+Alle Umfragedaten von [dawum.de](https://dawum.de)
+([ODbL](https://opendatacommons.org/licenses/odbl/1-0/)).

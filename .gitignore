@@ -38,3 +38,8 @@ src/wahlwetter/model/stan/*
 # committed snapshot and a fixed seed. Committing it daily would add hundreds of
 # megabytes a year for no benefit; the deploy workflow generates it instead.
 data/model/
+
+# Built site and generated site data (both reproducible; deploy.yml builds them)
+site/_site/
+site/.quarto/
+site/data/

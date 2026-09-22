@@ -1,0 +1,104 @@
+name: Deploy
+
+on:
+  # Publishes after a successful model run, which is what produces the JSON the
+  # charts read.
+  workflow_run:
+    workflows: ["Model"]
+    types: [completed]
+  push:
+    branches: [main]
+    paths:
+      - "site/**"
+      - ".github/workflows/deploy.yml"
+  workflow_dispatch:
+
+permissions:
+  contents: read
+  pages: write
+  id-token: write
+
+concurrency:
+  group: pages
+  cancel-in-progress: false
+
+jobs:
+  build:
+    if: >
+      github.event_name != 'workflow_run' ||
+      github.event.workflow_run.conclusion == 'success'
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Install uv
+        uses: astral-sh/setup-uv@v5
+        with:
+          enable-cache: true
+
+      - name: Install dependencies
+        run: uv sync --group dev
+
+      # The model output is not committed: it is 680 KB, regenerated on every
+      # run and fully reproducible. Deploy takes it from the Model workflow's
+      # artifact instead.
+      - name: Download model output
+        id: model
+        uses: actions/download-artifact@v4
+        continue-on-error: true
+        with:
+          name: bundestag-trend
+          path: data/model
+          github-token: ${{ secrets.GITHUB_TOKEN }}
+          run-id: ${{ github.event.workflow_run.id || github.run_id }}
+
+      - name: Check the model output is present
+        run: |
+          if [ ! -f data/model/bundestag_trend.json ]; then
+            echo "::error::No model output available. Run the Model workflow first."
+            exit 1
+          fi
+          # Refuse to publish numbers from a fit that failed its checks.
+          ok=$(jq -r '.diagnostics.ok' data/model/bundestag_trend.json)
+          if [ "$ok" != "true" ]; then
+            echo "::error::Model output came from a fit that failed its convergence checks"
+            jq '.diagnostics.problems' data/model/bundestag_trend.json
+            exit 1
+          fi
+
+      - name: Build site data
+        run: uv run wahlwetter site-data --trend-keep-every 2
+
+      - uses: quarto-dev/quarto-actions/setup@v2
+        with:
+          version: 1.10.18
+
+      - name: Render site
+        run: quarto render site
+
+      - name: Check nothing external is referenced
+        run: |
+          # Self-hosting is a privacy requirement, not a preference: a CDN
+          # reference would expose every visitor's IP to a third party.
+          if grep -rohE '(src|href)="https?://[^"]+"' site/_site/*.html \
+              | grep -vE 'dawum\.de|bundeswahlleiterin\.de|opendatacommons\.org|govdata\.de|github\.com' \
+              | grep . ; then
+            echo "::error::Built site references an external origin"
+            exit 1
+          fi
+          echo "no external resource references"
+
+      - uses: actions/configure-pages@v5
+      - uses: actions/upload-pages-artifact@v3
+        with:
+          path: site/_site
+
+  deploy:
+    needs: build
+    runs-on: ubuntu-latest
+    environment:
+      name: github-pages
+      url: ${{ steps.deployment.outputs.page_url }}
+    steps:
+      - id: deployment
+        uses: actions/deploy-pages@v4

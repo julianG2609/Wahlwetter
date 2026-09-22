@@ -113,12 +113,36 @@ def build_parser() -> argparse.ArgumentParser:
         help="output JSON (default: data/backtest/model_vs_baselines.json)",
     )
 
+    sitedata = sub.add_parser("site-data", help="write the precomputed JSON the static site reads")
+    sitedata.add_argument(
+        "--model-json",
+        type=Path,
+        default=None,
+        help="model output (default: data/model/bundestag_trend.json)",
+    )
+    sitedata.add_argument(
+        "--out",
+        type=Path,
+        default=None,
+        help="output directory (default: site/data)",
+    )
+    sitedata.add_argument("--recent-polls", type=int, default=60)
+    sitedata.add_argument(
+        "--trend-keep-every",
+        type=int,
+        default=1,
+        help="thin the daily trend to every Nth day to shrink the payload",
+    )
+
     return parser
 
 
 def main(argv: list[str] | None = None) -> int:
     args = build_parser().parse_args(argv)
     logging.basicConfig(level=logging.INFO, format="%(levelname)s %(message)s")
+
+    if args.command == "site-data":
+        return _site_data(args)
 
     if args.command == "backtest-model":
         return _backtest_model(args)
@@ -382,4 +406,43 @@ def _backtest_model(args: argparse.Namespace) -> int:
         out,
     )
     print(f"\nwrote {out}")
+    return 0
+
+
+def _site_data(args: argparse.Namespace) -> int:
+    from wahlwetter.config import DATA_DIR, REPO_ROOT, TABLES_DIR
+    from wahlwetter.polls import load_polls
+    from wahlwetter.site.export import build_site_data, write_site_data
+    from wahlwetter.storage import read_json, read_parquet
+
+    model_json = args.model_json or DATA_DIR / "model" / "bundestag_trend.json"
+    if not model_json.exists():
+        print(
+            f"error: {model_json} not found. Run `wahlwetter model` first, or "
+            "download the artifact produced by model.yml.",
+            file=sys.stderr,
+        )
+        return 2
+
+    def lookup(name: str, key: str, value: str) -> dict[str, str]:
+        frame = read_parquet(TABLES_DIR / f"{name}.parquet")
+        return frame.set_index(key)[value].to_dict()
+
+    payload = build_site_data(
+        read_json(model_json),
+        load_polls(),
+        party_names=lookup("parties", "party_id", "shortcut"),
+        institute_names=lookup("institutes", "institute_id", "name"),
+        tasker_names=lookup("taskers", "tasker_id", "name"),
+        method_names=lookup("methods", "method_id", "name"),
+        recent_polls=args.recent_polls,
+        trend_keep_every=args.trend_keep_every,
+    )
+
+    out = args.out or REPO_ROOT / "site" / "data"
+    written = write_site_data(payload, out)
+    total = sum(p.stat().st_size for p in written)
+    for path in written:
+        print(f"  {path.relative_to(REPO_ROOT)}  {path.stat().st_size / 1024:.0f} KB")
+    print(f"wrote {len(written)} files, {total / 1024:.0f} KB total")
     return 0

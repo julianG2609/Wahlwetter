@@ -1,0 +1,155 @@
+---
+title: "Methodik"
+---
+
+::: {.lede}
+Was hier gerechnet wird, welche Annahmen darin stecken und woran das Modell
+derzeit scheitert.
+:::
+
+## In einem Satz
+
+Aus allen veröffentlichten Umfragen wird geschätzt, wo die Parteien *heute*
+stehen — nicht, wie eine Wahl ausginge.
+
+## In ein paar Absätzen
+
+Einzelne Umfragen schwanken. Ein Teil davon ist Zufall der Stichprobe, ein Teil
+sind methodische Eigenheiten des Instituts, und ein kleiner Teil ist echte
+Meinungsänderung. Das Modell versucht, diese drei Anteile zu trennen.
+
+Es nimmt an, dass es einen gemeinsamen, unbeobachteten Stimmungsverlauf gibt,
+der sich von Tag zu Tag nur wenig ändert. Jede Umfrage ist eine verrauschte
+Messung dieses Verlaufs — verschoben um einen institutsspezifischen Effekt und
+verrauscht um einen Betrag, der von der Stichprobengröße abhängt.
+
+Die Anteile werden auf einer Log-Verhältnis-Skala modelliert und über eine
+Softmax-Funktion zurückgerechnet. Das klingt technisch, hat aber einen simplen
+Zweck: Die Anteile summieren sich dadurch **immer** zu 100 Prozent, ohne dass
+am Ende nachjustiert werden muss.
+
+Jede Umfrage wird auf die **Mitte ihres Befragungszeitraums** datiert, nicht auf
+den Tag der Veröffentlichung.
+
+## Was das Modell ausgibt
+
+Kein einzelner Wert, sondern eine Verteilung. Wenn eine Partei mit „19,9 %,
+80-%-Intervall 19,5 bis 20,3“ angegeben ist, heißt das: Unter den Annahmen
+dieses Modells liegt der wahre aktuelle Wert mit 80 Prozent Wahrscheinlichkeit
+in diesem Bereich.
+
+::: {.note .caution}
+Das ist eine Aussage über die **heutige Stimmung**, nicht über einen
+Wahlausgang. Wer diese Intervalle als Wahlprognose liest, liest sie falsch.
+:::
+
+## Institutseffekte
+
+Jedes Institut bekommt je Partei einen eigenen Effekt. Diese Effekte addieren
+sich über alle Institute zu null — sonst wäre nicht unterscheidbar, ob alle
+Institute zu hoch liegen oder das geschätzte Niveau zu niedrig.
+
+Daraus folgt eine wichtige Einschränkung: Gemessen wird der Abstand zum
+**Mittel der Institute**, nicht der Abstand zur Wahrheit. Ein gemeinsamer
+Fehler aller Institute bleibt unsichtbar.
+
+Für Institute mit weniger als fünf Umfragen im Zeitfenster wird kein Effekt
+ausgewiesen. Bei einer einzigen Umfrage ergäbe sich sonst eine scheinbar
+belastbare Zahl, die nur diese eine Umfrage nachzeichnet.
+
+## Erhebungsmethode: bewusst nicht modelliert
+
+Das Modell kann Online-, Telefon- und Mischbefragungen getrennt behandeln.
+Diese Option ist **abgeschaltet**, und zwar aus einem Grund, der die Zahlen
+sonst unbemerkt verfälschen würde:
+
+Im aktuellen Zeitfenster benutzen **9 von 11 Instituten genau eine Methode**.
+Ein allgemeiner Methodeneffekt wäre deshalb fast ausschließlich durch das eine
+Institut bestimmt, das seine Methode variiert, und würde dann auf alle anderen
+übertragen. Formal ist das Modell identifiziert — es würde also eine Zahl mit
+scheinbar schmalem Intervall ausgeben. Diese Zahl wäre nicht belastbar.
+
+## Was das Modell nicht tut
+
+- **Keine Prognose des Wahlergebnisses.** Es wird nicht modelliert, wie sich
+  die Stimmung bis zu einem Wahltag entwickelt.
+- **Keine Wahrscheinlichkeit für das Überspringen der Fünf-Prozent-Hürde.**
+  Dafür bräuchte es ein Prognosemodell.
+- **Keine Sitzverteilung, keine Koalitionsrechnung.** Noch nicht implementiert.
+- **Keine Direktmandate.** Aus Umfragen nicht ableitbar.
+- **Keine sich verändernden Institutseffekte.** Sie werden über das gesamte
+  Fenster als konstant angenommen, was Institute mit geänderter Methodik
+  falsch behandelt.
+
+## Validierung {#validierung}
+
+::: {.note .caution}
+**Das Modell schlägt die einfachen Vergleichsverfahren bislang nicht.**
+
+Getestet wurde gegen die Bundestagswahlen 2017, 2021 und 2025: Das Modell wurde
+jeweils nur mit den Umfragen gefüttert, die zum Stichtag bereits
+*veröffentlicht* waren, und seine Schätzung mit dem amtlichen Ergebnis
+verglichen — gegen dieselben Vergleichsverfahren, auf demselben Parteienset.
+
+In 9 Vergleichen liegt das Modell **4-mal** vorn. Es gewinnt durchgehend bei
+2017 und verliert durchgehend bei 2025. Der Vorsprung im Mittel liegt bei
+wenigen Hundertstel Prozentpunkten und ist bei drei Wahlen nicht von Rauschen
+zu unterscheiden.
+
+Hinzu kommt: **6 der 9 Modellläufe haben ihre Konvergenzprüfung nicht
+bestanden.** Die Zahlen beruhen also überwiegend auf Anpassungen, denen nicht
+zu trauen ist. Eine Wiederholung mit strengeren Einstellungen läuft.
+
+Solange sich das nicht ändert, ist dieses Modell **nicht** besser als ein
+gewichteter Durchschnitt der jeweils neuesten Umfrage je Institut.
+:::
+
+Details und Zahlen stehen im Quellcode-Repository unter `docs/model.md` und
+`docs/baselines.md`.
+
+## Ein Befund, der Vorsicht verlangt
+
+Das Modell schätzt, wie stark veröffentlichte Umfragewerte schwanken. Ergebnis:
+Sie schwanken nur etwa ein Siebtel so stark, wie es eine einfache
+Zufallsstichprobe der angegebenen Größe erwarten ließe.
+
+Das ist **nicht** als „Umfragen sind siebenmal genauer als gedacht“ zu lesen.
+Gemessen wird die Schwankung der *veröffentlichten* Zahlen, und Institute
+veröffentlichen gewichtete Projektionen, keine Rohwerte. Dieselbe Zahl entsteht
+durch zwei ganz verschiedene Dinge:
+
+1. tatsächlich effizientere Methodik, oder
+2. **Herdenverhalten** — Institute, die sich aneinander und an frühere
+   Ergebnisse anlehnen.
+
+Dieses Modell kann die beiden nicht unterscheiden, und sie haben
+gegenteilige Folgen: Wäre es Herdenverhalten, wären die hier gezeigten
+Intervalle **zu schmal**. Entsprechende Tests stehen aus.
+
+## Verwendete Quellen und deren Hintergrund
+
+- **[dawum.de](https://dawum.de)** — Umfragedatenbank, betrieben von
+  Dipl.-Jur. Philipp Guttmann. Die Daten stehen unter der
+  [ODbL](https://opendatacommons.org/licenses/odbl/1-0/). Das
+  Durchschnittsverfahren von dawum dient hier als eines der
+  Vergleichsverfahren; es ist auf dawum.de dokumentiert. Die genaue Form der
+  Gewichtung zwischen den dokumentierten Eckwerten ist dort nicht angegeben und
+  wurde für den Vergleich linear angenommen.
+- **[Die Bundeswahlleiterin](https://www.bundeswahlleiterin.de)** /
+  Statistisches Bundesamt (Destatis) — amtliche Wahlergebnisse, Grundlage der
+  Validierung, unter
+  [DL-DE-BY 2.0](https://www.govdata.de/dl-de/by-2-0).
+
+Die Betreiber dieser Seite stehen in keinem Auftrags- oder
+Finanzierungsverhältnis zu einem Meinungsforschungsinstitut, einem Medium oder
+einer Partei.
+
+::: {.note}
+*(Dieser Absatz ist vor einer Veröffentlichung zu prüfen und gegebenenfalls
+anzupassen.)*
+:::
+
+## Quellcode
+
+Alles hier ist nachvollziehbar: [github.com/julianG2609/Wahlwetter](https://github.com/julianG2609/Wahlwetter).
+Die abgeleitete Datenbank steht wie die Ausgangsdaten unter der ODbL.
