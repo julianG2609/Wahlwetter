@@ -1,0 +1,57 @@
+{
+  "Database": {
+    "License": {
+      "Name": "ODC Open Database License",
+      "Shortcut": "ODC-ODbL",
+      "Link": "https://opendatacommons.org/licenses/odbl/1-0/"
+    },
+    "Publisher": "example.invalid",
+    "Author": "Synthetic Fixture",
+    "Last_Update": "2026-09-21T07:46:18+02:00"
+  },
+  "Parliaments": {
+    "0": { "Shortcut": "Bundestag", "Name": "Bundestag", "Election": "Bundestagswahl" },
+    "3": { "Shortcut": "Berlin", "Name": "Berliner Abgeordnetenhaus", "Election": "Abgeordnetenhauswahl in Berlin" }
+  },
+  "Institutes": { "1": { "Name": "Institute One" }, "2": { "Name": "Institute Two" } },
+  "Taskers": { "1": { "Name": "Tasker One" }, "2": { "Name": "Tasker Two" } },
+  "Methods": { "0": { "Name": "Unbekannt" }, "3": { "Name": "Online" } },
+  "Parties": {
+    "0": { "Shortcut": "Sonstige", "Name": "sonstige Parteien" },
+    "1": { "Shortcut": "PartyA", "Name": "Party A" },
+    "2": { "Shortcut": "PartyB", "Name": "Party B" },
+    "5": { "Shortcut": "PartyC", "Name": "Party C" }
+  },
+  "Surveys": {
+    "200": {
+      "Date": "2026-03-10",
+      "Survey_Period": { "Date_Start": "2026-03-04", "Date_End": "2026-03-08" },
+      "Surveyed_Persons": "1500",
+      "Parliament_ID": "0",
+      "Institute_ID": "1",
+      "Tasker_ID": "1",
+      "Method_ID": "3",
+      "Results": { "1": 30, "2": 25, "5": 10, "0": 35 }
+    },
+    "100": {
+      "Date": "2026-02-02",
+      "Survey_Period": { "Date_Start": "2026-01-28", "Date_End": "2026-01-31" },
+      "Surveyed_Persons": "1000",
+      "Parliament_ID": "0",
+      "Institute_ID": "2",
+      "Tasker_ID": "2",
+      "Method_ID": "0",
+      "Results": { "1": 28.5, "2": 26.5, "0": 45 }
+    },
+    "150": {
+      "Date": "2026-02-20",
+      "Survey_Period": { "Date_Start": "2026-02-16", "Date_End": "2026-02-18" },
+      "Surveyed_Persons": "900",
+      "Parliament_ID": "3",
+      "Institute_ID": "1",
+      "Tasker_ID": "1",
+      "Method_ID": "3",
+      "Results": { "1": 22, "2": 20, "5": 18, "0": 40 }
+    }
+  }
+}
