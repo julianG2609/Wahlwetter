@@ -43,14 +43,21 @@ jobs:
       # run and fully reproducible. Deploy takes it from the Model workflow's
       # artifact instead.
       - name: Download model output
-        id: model
-        uses: actions/download-artifact@v4
-        continue-on-error: true
-        with:
-          name: bundestag-trend
-          path: data/model
-          github-token: ${{ secrets.GITHUB_TOKEN }}
-          run-id: ${{ github.event.workflow_run.id || github.run_id }}
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: |
+          # Take the artifact from the most recent successful Model run rather
+          # than from the triggering run, so a site-only push can deploy too
+          # without waiting ten minutes for a sampler it does not need.
+          run_id=$(gh run list --workflow=model.yml --status=success \
+            --limit 1 --json databaseId --jq '.[0].databaseId')
+          if [ -z "$run_id" ]; then
+            echo "::error::No successful Model run found. Run the Model workflow first."
+            exit 1
+          fi
+          echo "using model output from run $run_id"
+          mkdir -p data/model
+          gh run download "$run_id" --name bundestag-trend --dir data/model
 
       - name: Check the model output is present
         run: |
