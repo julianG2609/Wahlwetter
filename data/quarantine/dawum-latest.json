@@ -1,0 +1,15 @@
+{
+  "findings_by_rule": {
+    "share_sum": {
+      "error": 0,
+      "warning": 4
+    }
+  },
+  "n_surveys_accepted": 3956,
+  "n_surveys_quarantined": 0,
+  "quarantined": [],
+  "retrieved_at": "2026-09-22T11:43:56.032104+00:00",
+  "snapshot_sha256": "96338bc0f9a08220edf373274027ed8600a0343f4523ea821f22b09eba7d7608",
+  "snapshot_update_token": "2026-09-21T07:46:18+02:00",
+  "source": "dawum"
+}
