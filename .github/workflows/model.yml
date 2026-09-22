@@ -1,0 +1,107 @@
+name: Model
+
+on:
+  # Runs after a successful ingest. The ingest job only commits when the data
+  # actually changed, so this checks for that before spending ~10 minutes of
+  # sampling on an unchanged dataset.
+  workflow_run:
+    workflows: ["Ingest"]
+    types: [completed]
+  workflow_dispatch:
+    inputs:
+      force:
+        description: "Fit even if the tables did not change"
+        type: boolean
+        default: false
+
+permissions:
+  contents: read
+
+concurrency:
+  group: model
+  cancel-in-progress: false
+
+jobs:
+  fit:
+    # Never model data from a failed ingest.
+    if: >
+      github.event_name == 'workflow_dispatch' ||
+      github.event.workflow_run.conclusion == 'success'
+    runs-on: ubuntu-latest
+    timeout-minutes: 90
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          # Need the previous commit to see whether the tables changed.
+          fetch-depth: 2
+
+      - name: Decide whether to fit
+        id: decide
+        run: |
+          if [ "${{ inputs.force }}" = "true" ]; then
+            echo "fit=true" >> "$GITHUB_OUTPUT"
+            echo "forced"
+          elif git diff --quiet HEAD~1 HEAD -- data/tables 2>/dev/null; then
+            echo "fit=false" >> "$GITHUB_OUTPUT"
+            echo "tables unchanged, skipping"
+          else
+            echo "fit=true" >> "$GITHUB_OUTPUT"
+            echo "tables changed"
+          fi
+
+      - name: Install uv
+        if: steps.decide.outputs.fit == 'true'
+        uses: astral-sh/setup-uv@v5
+        with:
+          enable-cache: true
+
+      - name: Install dependencies
+        if: steps.decide.outputs.fit == 'true'
+        run: uv sync --extra model --group dev
+
+      # CmdStan takes ~10 minutes to build from scratch, so it is cached on the
+      # version string. The compiled model executable is cached with it.
+      - name: Cache CmdStan
+        if: steps.decide.outputs.fit == 'true'
+        id: cmdstan-cache
+        uses: actions/cache@v4
+        with:
+          path: ~/.cmdstan
+          key: cmdstan-${{ runner.os }}-${{ env.CMDSTAN_VERSION }}
+        env:
+          CMDSTAN_VERSION: "2.40.0"
+
+      - name: Install CmdStan
+        if: steps.decide.outputs.fit == 'true' && steps.cmdstan-cache.outputs.cache-hit != 'true'
+        run: uv run python -m cmdstanpy.install_cmdstan --version 2.40.0 --cores 2
+
+      - name: Fit the model
+        if: steps.decide.outputs.fit == 'true'
+        run: |
+          # No --allow-bad-diagnostics: a fit that fails its convergence checks
+          # must fail the job rather than quietly publish numbers.
+          uv run wahlwetter model --chains 4
+
+      - name: Upload model output
+        if: steps.decide.outputs.fit == 'true'
+        uses: actions/upload-artifact@v4
+        with:
+          name: bundestag-trend
+          path: data/model/bundestag_trend.json
+          retention-days: 30
+          if-no-files-found: error
+
+      - name: Job summary
+        if: always()
+        run: |
+          {
+            echo "### Model run"
+            echo
+            echo "- fitted: ${{ steps.decide.outputs.fit }}"
+            if [ -f data/model/bundestag_trend.json ]; then
+              echo '```json'
+              jq '{diagnostics, posterior_predictive_check, parameters}' \
+                data/model/bundestag_trend.json
+              echo '```'
+            fi
+          } >> "$GITHUB_STEP_SUMMARY"
