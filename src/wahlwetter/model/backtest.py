@@ -50,6 +50,10 @@ class ModelBacktestRow:
     per_party_abs_error: dict[str, float]
     diagnostics_ok: bool | None = None
     diagnostic_problems: list[str] = field(default_factory=list)
+    # Only the model has a posterior, so these stay None for the baselines.
+    mean_log_score: float | None = None
+    coverage_80: float | None = None
+    mean_abs_z: float | None = None
 
 
 def aggregate_actual(election: ElectionResult, parties: Sequence[str]) -> dict[str, float]:
@@ -76,6 +80,55 @@ def model_estimate_at(fit, model_data, day: date) -> dict[str, float]:
     index = model_data.day_index(day) - 1
     values = share[:, index, :] * 100.0
     return {party: float(np.median(values[:, k])) for k, party in enumerate(model_data.parties)}
+
+
+def score_posterior(fit, model_data, day: date, actual: dict[str, float]) -> dict[str, float]:
+    """Log score and interval coverage of the latent posterior at the cutoff.
+
+    The brief asks for a log score, which the baselines cannot supply because
+    they produce point estimates. The model can.
+
+    A caution that matters more than the number: this scores the posterior for
+    *opinion at the cutoff* against the *eventual election result*, which are
+    not the same quantity. Between the two lie however many days the horizon
+    covers, plus whatever systematic polling error existed. A confident latent
+    posterior will therefore score badly here, and that is informative rather
+    than a defect -- it shows directly that these intervals must not be read as
+    forecast intervals.
+    """
+    import numpy as np
+
+    share = fit.stan_variable("share")
+    index = model_data.day_index(day) - 1
+    draws = share[:, index, :] * 100.0
+
+    log_densities: list[float] = []
+    z_scores: list[float] = []
+    inside = 0
+    for k, party in enumerate(model_data.parties):
+        values = draws[:, k]
+        truth = actual.get(party, 0.0)
+        mean = float(values.mean())
+        sd = float(values.std(ddof=1))
+        if sd <= 0:
+            continue
+        # Normal approximation to the marginal posterior. Adequate here: the
+        # softmax marginals are close to symmetric away from the boundaries.
+        log_densities.append(
+            float(-0.5 * np.log(2 * np.pi * sd**2) - 0.5 * ((truth - mean) / sd) ** 2)
+        )
+        z_scores.append(abs(truth - mean) / sd)
+        lo, hi = np.percentile(values, [10.0, 90.0])
+        inside += int(lo <= truth <= hi)
+
+    n = len(log_densities)
+    if n == 0:  # pragma: no cover - would need a degenerate posterior
+        return {"mean_log_score": 0.0, "coverage_80": 0.0, "mean_abs_z": 0.0}
+    return {
+        "mean_log_score": round(sum(log_densities) / n, 4),
+        "coverage_80": round(inside / len(model_data.parties), 4),
+        "mean_abs_z": round(sum(z_scores) / n, 4),
+    }
 
 
 def run_model_backtest(
@@ -124,6 +177,7 @@ def run_model_backtest(
             fit = sample(model_data, config, model=model)
             diagnostics = collect_diagnostics(fit, config)
             estimate = model_estimate_at(fit, model_data, as_of)
+            posterior_scores = score_posterior(fit, model_data, as_of, actual)
 
             mae, rmse, worst, worst_party = score(estimate, actual)
             rows.append(
@@ -145,6 +199,9 @@ def run_model_backtest(
                     },
                     diagnostics_ok=diagnostics.ok,
                     diagnostic_problems=list(diagnostics.problems),
+                    mean_log_score=posterior_scores["mean_log_score"],
+                    coverage_80=posterior_scores["coverage_80"],
+                    mean_abs_z=posterior_scores["mean_abs_z"],
                 )
             )
 

@@ -267,6 +267,24 @@ numbers are not trustworthy.
 **The conclusion stands regardless: there is no evidence the model beats the
 baselines.** It must not be presented on the site as better until there is.
 
+### Log score and interval coverage
+
+The brief asks for a log score alongside MAE. The baselines produce point
+estimates with no predictive distribution, so only the model can be scored this
+way; `score_posterior()` reports the mean log density of the official result
+under the latent posterior, together with 80% interval coverage and the mean
+absolute z-score.
+
+**Read these as a calibration check, not as a forecast score.** They compare a
+posterior for *opinion at the cutoff* against the *eventual result*. Between
+the two lie the horizon and whatever systematic polling error existed. A
+confident latent posterior will score badly, and that is the point: it
+demonstrates directly that these intervals are not forecast intervals and must
+never be presented as the probability of an election outcome.
+
+These were added after the run reported above, so the numbers in
+`model_vs_baselines.json` do not yet include them.
+
 ### Why the model might be losing on 2025
 
 Worth investigating rather than assuming:
